@@ -65,3 +65,6 @@ CORS_ORIGINS=["https://tu-proyecto.vercel.app","https://tudominio.com"]
   en vivo la API entrega los valores con su intervalo y `truth_granularity`.
 - Gráficos con Chart.js (CDN). No usa almacenamiento más allá de `localStorage` para
   recordar tu configuración de API.
+
+
+<!-- Deploy a Vercel: explorer.databolico.com -->
