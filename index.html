@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,maximum-scale=1"/>
+<meta name="theme-color" content="#0a0a12"/>
+<title>GenZ Colombia · Insights</title>
+<meta name="description" content="Inteligencia de mercado sobre población sintética enriquecida — GenZ Colombia API V3"/>
+<link rel="stylesheet" href="styles.css"/>
+</head>
+<body>
+<div class="app">
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="dot">⚡</span>
+      <div>GenZ Colombia<small>INSIGHTS · API V3</small></div>
+    </div>
+    <span class="spacer"></span>
+    <span id="srcBadge" class="badge demo"><span class="led"></span>DEMO</span>
+    <button class="icon-btn" id="openSettings" aria-label="Ajustes">⚙️</button>
+  </header>
+
+  <div class="filters">
+    <div class="chips" id="filterChips">
+      <button class="chip" data-filter="territory"><span class="k">Territorio</span> <span id="fTerr">Todo el país</span> ▾</button>
+      <button class="chip" data-filter="age"><span class="k">Edad</span> <span id="fAge">12–28</span> ▾</button>
+      <button class="chip" data-filter="sex"><span class="k">Sexo</span> <span id="fSex">Todos</span> ▾</button>
+      <button class="chip" id="liveChip" data-filter="live">⟲ Cargar en vivo</button>
+    </div>
+  </div>
+
+  <main>
+    <section class="view" id="view-overview"></section>
+    <section class="view hidden" id="view-culture"></section>
+    <section class="view hidden" id="view-economy"></section>
+    <section class="view hidden" id="view-tech"></section>
+    <section class="view hidden" id="view-people"></section>
+    <section class="view hidden" id="view-dict"></section>
+    <div class="foot" id="foot"></div>
+  </main>
+
+  <nav class="nav" id="nav">
+    <button data-view="overview" class="active"><span class="ic">📊</span>Resumen</button>
+    <button data-view="culture"><span class="ic">🎵</span>Cultura</button>
+    <button data-view="economy"><span class="ic">💳</span>Economía</button>
+    <button data-view="tech"><span class="ic">📱</span>Tech</button>
+    <button data-view="people"><span class="ic">🧑‍🤝‍🧑</span>Personas</button>
+    <button data-view="dict"><span class="ic">📚</span>Variables</button>
+  </nav>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- Settings / sheet mount -->
+<div id="sheetRoot"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="demo-data.js"></script>
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
