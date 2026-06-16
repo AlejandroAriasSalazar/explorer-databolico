@@ -1,6 +1,6 @@
-/* GenZ Colombia — Insights frontend (vanilla JS + Chart.js).
-   Mobile-first dashboard sobre la población sintética enriquecida de la API V3.
-   Fuente de datos: API en vivo (VPS) con respaldo en dataset embebido (motor V3). */
+/* Data Colombia — Insights frontend (vanilla JS + Chart.js).
+   Dashboard sobre la población sintética enriquecida de Colombia (API V3).
+   Fuente: API en vivo (VPS) con respaldo en dataset embebido. Look: dark-premium sobrio. */
 (function () {
 "use strict";
 
@@ -10,8 +10,8 @@ const CFG = Object.assign({ API_BASE: "", API_KEY: "", LIVE_SAMPLE_SIZE: 500 },
   window.GENZ_CONFIG || {}, loadLS("genz_cfg") || {});
 const VARMETA = {}; DEMO.dictionary.forEach(v => VARMETA[v.name] = v);
 
-const PALETTE = ["#ff4d8d","#9b5cff","#22d3ee","#34d399","#fbbf24","#f97316",
-                 "#60a5fa","#f472b6","#a78bfa","#2dd4bf","#e879f9","#38bdf8"];
+const PALETTE = ["#e3b341","#7fa7d8","#83c5b6","#c08fd0","#e0918e","#9fbf8a",
+                 "#d49a6a","#8f93d6","#6fb8a8","#cf8aa8"];
 const REGION_NAMES = { bogota:"Bogotá", andina:"Andina", caribe:"Caribe",
   pacifico:"Pacífico", orinoquia:"Orinoquía", amazonia:"Amazonía" };
 const DEPT_REGION = {
@@ -76,61 +76,71 @@ function pearson(a,b){ const n=a.length; if(n<3) return 0; const ma=a.reduce((x,
   let num=0,da=0,db=0; for(let i=0;i<n;i++){const x=a[i]-ma,y=b[i]-mb;num+=x*y;da+=x*x;db+=y*y;} return (da&&db)? num/Math.sqrt(da*db):0; }
 
 // ---------------------------------------------------------------- charts
-Chart.defaults.color = "#9a9ab5";
-Chart.defaults.font.family = "-apple-system,Segoe UI,Roboto,system-ui,sans-serif";
+Chart.defaults.color = "#8e8e98";
+Chart.defaults.font.family = "Inter,-apple-system,Segoe UI,Roboto,system-ui,sans-serif";
 Chart.defaults.font.size = 11;
-Chart.defaults.plugins.legend.labels.boxWidth = 10;
-Chart.defaults.plugins.legend.labels.boxHeight = 10;
-Chart.defaults.plugins.legend.labels.padding = 12;
-const GRID = "rgba(255,255,255,.06)";
+Chart.defaults.plugins.legend.labels.usePointStyle = true;
+Chart.defaults.plugins.legend.labels.pointStyle = "circle";
+Chart.defaults.plugins.legend.labels.boxWidth = 7;
+Chart.defaults.plugins.legend.labels.boxHeight = 7;
+Chart.defaults.plugins.legend.labels.padding = 14;
+Chart.defaults.plugins.legend.labels.font = { size:10.5 };
+Object.assign(Chart.defaults.plugins.tooltip, {
+  backgroundColor:"#17171b", borderColor:"rgba(255,255,255,.12)", borderWidth:1,
+  titleColor:"#ededee", bodyColor:"#b9b9c2", padding:10, cornerRadius:8, displayColors:false,
+  titleFont:{ weight:"600" } });
+const GRID = "rgba(255,255,255,.05)";
+const AXC = "#8e8e98";
 
 function destroyCharts(){ Object.keys(charts).forEach(k=>{ try{charts[k].destroy();}catch(e){} delete charts[k]; }); }
 function mk(id, cfg){ const el = document.getElementById(id); if(!el) return; charts[id]=new Chart(el.getContext("2d"), cfg); }
 
+// Barras de una sola tinta (la categoría va en el eje): más limpio y sobrio que el arcoíris.
 function barChart(id, items, {horizontal=false, color=0, labels=null}={}){
   const lbls = labels || items.map(i=>pretty(i.label));
   const data = items.map(i=>i.count);
-  const colors = items.map((_,i)=> PALETTE[(color+i)%PALETTE.length]);
+  const c = PALETTE[color%PALETTE.length];
   mk(id,{ type:"bar",
-    data:{ labels:lbls, datasets:[{ data, backgroundColor: horizontal? PALETTE[color%PALETTE.length]+"cc": colors,
-      borderRadius:6, borderSkipped:false, maxBarThickness:38 }]},
+    data:{ labels:lbls, datasets:[{ data, backgroundColor:c+"cc", hoverBackgroundColor:c,
+      borderRadius:5, borderSkipped:false, maxBarThickness:horizontal?20:40 }]},
     options:{ indexAxis: horizontal?"y":"x", responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{display:false}, tooltip:{callbacks:{label:c=>` ${c.parsed[horizontal?'x':'y']} (${items[c.dataIndex].pct}%)`}}},
-      scales:{ x:{grid:{color:horizontal?GRID:"transparent"},ticks:{maxRotation:0,autoSkip:true}},
-               y:{grid:{color:horizontal?"transparent":GRID},ticks:{precision:0}}}}});
+      plugins:{ legend:{display:false}, tooltip:{callbacks:{label:t=>` ${t.parsed[horizontal?'x':'y']} · ${items[t.dataIndex].pct}%`}}},
+      scales:{ x:{grid:{color:horizontal?GRID:"transparent"},border:{display:false},ticks:{maxRotation:0,autoSkip:true,color:AXC}},
+               y:{grid:{color:horizontal?"transparent":GRID},border:{display:false},ticks:{precision:0,color:AXC}}}}});
 }
 function doughnut(id, items, {color=0}={}){
   mk(id,{ type:"doughnut",
     data:{ labels:items.map(i=>pretty(i.label)),
       datasets:[{ data:items.map(i=>i.count), backgroundColor:items.map((_,i)=>PALETTE[(color+i)%PALETTE.length]),
-        borderColor:"#15151f", borderWidth:2, hoverOffset:6 }]},
-    options:{ responsive:true, maintainAspectRatio:false, cutout:"62%",
-      plugins:{ legend:{position:"right",labels:{font:{size:10.5}}},
-        tooltip:{callbacks:{label:c=>` ${pretty(items[c.dataIndex].label)}: ${items[c.dataIndex].pct}%`}}}}});
+        borderColor:"#121215", borderWidth:3, hoverOffset:5 }]},
+    options:{ responsive:true, maintainAspectRatio:false, cutout:"66%",
+      plugins:{ legend:{position:"right"},
+        tooltip:{callbacks:{label:t=>` ${pretty(items[t.dataIndex].label)} · ${items[t.dataIndex].pct}%`}}}}});
 }
 function radarChart(id, labels, values, {color=1}={}){
   const c = PALETTE[color%PALETTE.length];
   mk(id,{ type:"radar",
-    data:{ labels, datasets:[{ data:values, backgroundColor:c+"33", borderColor:c, pointBackgroundColor:c, borderWidth:2 }]},
+    data:{ labels, datasets:[{ data:values, backgroundColor:c+"26", borderColor:c, pointBackgroundColor:c, borderWidth:1.8, pointRadius:2 }]},
     options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
-      scales:{ r:{ angleLines:{color:GRID}, grid:{color:GRID}, pointLabels:{font:{size:10.5},color:"#c7c7de"},
+      scales:{ r:{ angleLines:{color:GRID}, grid:{color:GRID}, pointLabels:{font:{size:10.5},color:"#b9b9c2"},
         ticks:{display:false,maxTicksLimit:4}, suggestedMin:0 }}}});
 }
 function lineChart(id, labels, values, {color=2,fill=true}={}){
   const c = PALETTE[color%PALETTE.length];
   mk(id,{ type:"line",
-    data:{ labels, datasets:[{ data:values, borderColor:c, backgroundColor:c+"22", fill, tension:.35,
-      pointRadius:2, pointBackgroundColor:c, borderWidth:2 }]},
+    data:{ labels, datasets:[{ data:values, borderColor:c, backgroundColor:c+"1e", fill, tension:.4,
+      pointRadius:0, pointHoverRadius:4, pointBackgroundColor:c, borderWidth:2 }]},
     options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
-      scales:{ x:{grid:{color:"transparent"}}, y:{grid:{color:GRID},ticks:{precision:0}}}}});
+      scales:{ x:{grid:{color:"transparent"},border:{display:false},ticks:{color:AXC,maxRotation:0,autoSkip:true}},
+               y:{grid:{color:GRID},border:{display:false},ticks:{precision:0,color:AXC}}}}});
 }
 function groupedRate(id, labels, datasets){
   mk(id,{ type:"bar",
     data:{ labels, datasets: datasets.map((d,i)=>({ label:d.label, data:d.data,
-      backgroundColor:PALETTE[i%PALETTE.length]+"dd", borderRadius:5, maxBarThickness:26 })) },
+      backgroundColor:PALETTE[i%PALETTE.length]+"d8", borderRadius:4, maxBarThickness:24 })) },
     options:{ responsive:true, maintainAspectRatio:false,
-      plugins:{ legend:{position:"top"}, tooltip:{callbacks:{label:c=>` ${c.dataset.label}: ${c.parsed.y}%`}}},
-      scales:{ x:{grid:{color:"transparent"}}, y:{grid:{color:GRID},ticks:{callback:v=>v+"%"},suggestedMax:100}}}});
+      plugins:{ legend:{position:"top"}, tooltip:{callbacks:{label:t=>` ${t.dataset.label}: ${t.parsed.y}%`}}},
+      scales:{ x:{grid:{color:"transparent"},border:{display:false},ticks:{color:AXC}}, y:{grid:{color:GRID},border:{display:false},ticks:{callback:v=>v+"%",color:AXC},suggestedMax:100}}}});
 }
 
 // ---------------------------------------------------------------- HTML helpers
@@ -156,15 +166,18 @@ function renderOverview(rows){
   const topMusic = music[0]||{label:"—",pct:0};
   const topSeg = seg[0]||{label:"—",pct:0};
 
+  const sexNote = state.filter.sex!=="all" ? " · "+(state.filter.sex==="F"?"mujeres":"hombres") : "";
   const html = `
-  ${insight("✨", `<b>${fmt(rows.length)}</b> personas sintéticas en el foco actual · <b>${state.filter.label}</b>, edades ${state.filter.ageMin}–${state.filter.ageMax}${state.filter.sex!=="all"?", "+(state.filter.sex==="F"?"mujeres":"hombres"):""}.`)}
-  <div class="kpis" style="margin-top:12px">
-    ${kpi(fmt(rows.length),"Personas en foco", state.source==="demo"?"dataset motor V3":"API en vivo")}
-    ${kpi(medianAge,"Edad mediana","años")}
-    ${kpi(pretty(topMusic.label),"Género musical top",topMusic.pct+"% de la muestra")}
+  <div class="hero">
+    <div class="eyebrow">${state.filter.label} · ${state.source==="demo"?"Dataset de respaldo":"API en vivo"}</div>
+    <h1>${fmt(rows.length)} personas <span class="accent">en foco</span></h1>
+    <p class="lede">Población sintética de Colombia · edades ${state.filter.ageMin}–${state.filter.ageMax}${sexNote}. Cada perfil trae <b>52 variables</b> ancladas a fuentes oficiales y modeladas con banda de confianza.</p>
+  </div>
+  <div class="kpis" style="margin-top:18px">
+    ${kpi(medianAge+" años","Edad mediana")}
+    ${kpi(pretty(topMusic.label),"Género top",topMusic.pct+"% de la muestra")}
     ${kpi(pretty(topSeg.label),"Segmento dominante",topSeg.pct+"% psicográfico")}
-    ${kpi(banca+"%","Bancarizados","tienen cuenta")}
-    ${kpi(smart+"%","Con smartphone","penetración")}
+    ${kpi(banca+"%","Bancarizados",smart+"% con smartphone")}
   </div>
 
   <h2 class="section">Pulso cultural y social</h2>
@@ -431,7 +444,7 @@ function render(){
   else if(state.view==="people") renderPeople();
   else if(state.view==="dict") renderDict();
   updateChips();
-  $("#foot").innerHTML = `Fuente: ${state.source==="demo"?"dataset de respaldo (motor V3, ilustrativo)":"API V3 en vivo"} · modelo ${DEMO.model_version} · ${fmt(state.persons.length)} personas cargadas.<br/>Tier 2 anclado (Censo/MinTIC) · Tier 3 modelado con banda (ECC/GEIH/ENTIC). Población sintética: ninguna persona es real.`;
+  $("#foot").innerHTML = `<b>Data Colombia</b> · ${state.source==="demo"?"dataset de respaldo (ilustrativo)":"API V3 en vivo"} · ${fmt(state.persons.length)} perfiles · modelo ${DEMO.model_version}.<br/>Tier 1 oficial DANE · Tier 2 anclado (Censo / MinTIC) · Tier 3 modelado con banda (ECC / GEIH / ENTIC). Población sintética — ninguna persona es real.`;
 }
 
 function updateChips(){
