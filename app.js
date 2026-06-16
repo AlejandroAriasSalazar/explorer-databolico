@@ -27,7 +27,7 @@ const state = {
   persons: DEMO.persons.slice(),
   detailed: DEMO.detailed.slice(),
   view: "overview",
-  filter: { scope: "all", value: null, label: "Todo el país", ageMin: 12, ageMax: 28, sex: "all" },
+  filter: { scope: "all", value: null, label: "Todo el país", ageMin: 0, ageMax: 100, sex: "all" },
 };
 const charts = {};
 
@@ -300,8 +300,8 @@ function renderTech(rows){
   const platform = distribution(rows,"primary_social_platform",{order:false});
   const skills = distribution(rows,"digital_skills_index",{order:true});
   const adopter = distribution(rows,"early_adopter_index",{order:true});
-  // social media hours by age band
-  const bands=[["12-17",12,17],["18-24",18,24],["25-28",25,28]];
+  // social media hours by age band (whole population, mirrors the engine's age bands)
+  const bands=[["0-11",0,11],["12-17",12,17],["18-24",18,24],["25-34",25,34],["35-49",35,49],["50+",50,100]];
   const smhByBand = bands.map(([lbl,a,b])=>{
     const sub=rows.filter(r=>r.age>=a&&r.age<=b); return meanNum(sub,"social_media_hours_day");
   });
@@ -478,18 +478,18 @@ function territorySheet(){
 function ageSheet(){
   openSheet("Rango de edad", `
     <div class="row2">
-      <div class="field"><label>Mínima</label><input id="aMin" type="number" min="12" max="28" value="${state.filter.ageMin}"/></div>
-      <div class="field"><label>Máxima</label><input id="aMax" type="number" min="12" max="28" value="${state.filter.ageMax}"/></div>
+      <div class="field"><label>Mínima</label><input id="aMin" type="number" min="0" max="100" value="${state.filter.ageMin}"/></div>
+      <div class="field"><label>Máxima</label><input id="aMax" type="number" min="0" max="100" value="${state.filter.ageMax}"/></div>
     </div>
     <div class="chips" style="margin-bottom:12px">
-      ${[["12–17",12,17],["18–24",18,24],["25–28",25,28],["12–28",12,28]].map(p=>`<button class="chip" data-a="${p[1]}-${p[2]}">${p[0]}</button>`).join("")}
+      ${[["Toda",0,100],["Gen Z",12,28],["Niñez 0–11",0,11],["18–24",18,24],["25–34",25,34],["35–49",35,49],["50+",50,100]].map(p=>`<button class="chip" data-a="${p[1]}-${p[2]}">${p[0]}</button>`).join("")}
     </div>
     <button class="btn" id="applyAge">Aplicar</button>
   `, root=>{
     $$(".chip[data-a]",root).forEach(b=>b.onclick=()=>{ const [a,b2]=b.dataset.a.split("-"); $("#aMin",root).value=a; $("#aMax",root).value=b2; });
     $("#applyAge",root).onclick=()=>{
-      let mn=+$("#aMin",root).value||12, mx=+$("#aMax",root).value||28;
-      mn=Math.max(12,Math.min(28,mn)); mx=Math.max(12,Math.min(28,mx)); if(mn>mx)[mn,mx]=[mx,mn];
+      let mn=+$("#aMin",root).value||0, mx=+$("#aMax",root).value||100;
+      mn=Math.max(0,Math.min(100,mn)); mx=Math.max(0,Math.min(100,mx)); if(mn>mx)[mn,mx]=[mx,mn];
       state.filter.ageMin=mn; state.filter.ageMax=mx; closeSheet(); render();
     };
   });
