@@ -12,7 +12,7 @@
   --safe-b:env(safe-area-inset-bottom,0px);
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-html,body{margin:0;padding:0}
+html,body{margin:0;padding:0;overflow-x:hidden;width:100%}
 body{
   background:radial-gradient(1200px 600px at 50% -10%,#1a1330 0%,var(--bg) 55%) fixed;
   color:var(--txt);
@@ -65,8 +65,9 @@ a{color:var(--a3);text-decoration:none}
 .view{padding:6px 14px 8px;display:block}
 .view h2.section{font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:18px 4px 8px}
 .grid{display:grid;grid-template-columns:1fr;gap:12px}
-.grid.k2{grid-template-columns:1fr 1fr}
-.grid.k3{grid-template-columns:1fr 1fr}
+/* En móvil todo se apila (1 columna); el media query de ≥760px los vuelve 2/3 por fila. */
+.grid.k2{grid-template-columns:1fr}
+.grid.k3{grid-template-columns:1fr}
 
 /* Cards */
 .card{background:linear-gradient(180deg,var(--card),var(--card2));border:1px solid var(--line);
