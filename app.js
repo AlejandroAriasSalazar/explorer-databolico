@@ -31,6 +31,20 @@ const state = {
 };
 const charts = {};
 
+// Departamentos: el snapshot trae p.dept (nombre) y p.code (codigo de municipio DANE).
+// Derivamos mapas codigo(2 dig)<->nombre desde el dataset para resolver el departamento
+// tambien en modo "en vivo" (donde cada fila llega con municipality_code).
+const DEPT_NAME_BY_CODE = {};
+const DEPT_CODE_BY_NAME = {};
+DEMO.persons.forEach(p => {
+  if (!p || !p.code) return;
+  const dc = String(p.code).slice(0,2), dn = p.dept || "";
+  if (dc && dn && !DEPT_NAME_BY_CODE[dc]) DEPT_NAME_BY_CODE[dc] = dn;
+  if (dn && !DEPT_CODE_BY_NAME[dn]) DEPT_CODE_BY_NAME[dn] = dc;
+});
+function deptOf(p){ return (p && (p.dept || DEPT_NAME_BY_CODE[String(p.code||"").slice(0,2)])) || ""; }
+function departmentList(){ return [...new Set(state.persons.map(deptOf).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"es")); }
+
 // ---------------------------------------------------------------- utils
 function $(s, r) { return (r || document).querySelector(s); }
 function loadLS(k){ try{ return JSON.parse(localStorage.getItem(k)); }catch(e){ return null; } }
@@ -45,6 +59,7 @@ function filtered(){
     if (p.age < f.ageMin || p.age > f.ageMax) return false;
     if (f.sex !== "all" && p.sex !== f.sex) return false;
     if (f.scope === "region" && p.region !== f.value) return false;
+    if (f.scope === "department" && deptOf(p) !== f.value) return false;
     if (f.scope === "city" && p.city !== f.value) return false;
     return true;
   });
@@ -466,22 +481,27 @@ function openSheet(title, bodyHTML, onMount){
 function closeSheet(){ $("#sheetRoot").innerHTML=""; }
 
 function territorySheet(){
-  const regions = Object.keys(REGION_NAMES);
-  const cities = [...new Set(state.persons.map(p=>p.city))].sort();
+  const depts = departmentList();
+  const allCities = [...new Set(state.persons.map(p=>p.city).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"es"));
+  const citiesFor = dep => dep
+    ? [...new Set(state.persons.filter(p=>deptOf(p)===dep).map(p=>p.city).filter(Boolean))].sort((a,b)=>a.localeCompare(b,"es"))
+    : allCities;
+  const curDept = state.filter.scope==="department" ? state.filter.value
+    : (state.filter.scope==="city" ? deptOf(state.persons.find(p=>p.city===state.filter.value)||{}) : "");
+  const cityOpts = (list,sel) => `<option value="">Todas</option>`+list.map(c=>`<option value="${c}"${c===sel?" selected":""}>${c}</option>`).join("");
   openSheet("Territorio", `
-    <div class="field"><label>Región</label>
-      <select id="selRegion"><option value="">Todas</option>${regions.map(r=>`<option value="${r}">${REGION_NAMES[r]}</option>`).join("")}</select></div>
-    <div class="field"><label>Ciudad</label>
-      <select id="selCity"><option value="">Todas</option>${cities.map(c=>`<option value="${c}">${c}</option>`).join("")}</select></div>
+    <div class="field"><label>Departamento</label>
+      <select id="selDept"><option value="">Todos</option>${depts.map(d=>`<option value="${d}"${d===curDept?" selected":""}>${d}</option>`).join("")}</select></div>
+    <div class="field"><label>Ciudad / municipio</label>
+      <select id="selCity">${cityOpts(citiesFor(curDept), state.filter.scope==="city"?state.filter.value:"")}</select></div>
     <button class="btn" id="applyTerr">Aplicar</button>
     <button class="btn ghost" id="clearTerr" style="margin-top:8px">Todo el país</button>
   `, root=>{
-    if(state.filter.scope==="region") $("#selRegion",root).value=state.filter.value;
-    if(state.filter.scope==="city") $("#selCity",root).value=state.filter.value;
+    $("#selDept",root).onchange=()=>{ const d=$("#selDept",root).value; $("#selCity",root).innerHTML=cityOpts(citiesFor(d)); };
     $("#applyTerr",root).onclick=()=>{
-      const reg=$("#selRegion",root).value, city=$("#selCity",root).value;
+      const dep=$("#selDept",root).value, city=$("#selCity",root).value;
       if(city){ state.filter.scope="city"; state.filter.value=city; state.filter.label=city; }
-      else if(reg){ state.filter.scope="region"; state.filter.value=reg; state.filter.label=REGION_NAMES[reg]; }
+      else if(dep){ state.filter.scope="department"; state.filter.value=dep; state.filter.label=dep; }
       else { state.filter.scope="all"; state.filter.value=null; state.filter.label="Todo el país"; }
       closeSheet(); render();
     };
@@ -551,13 +571,21 @@ async function loadLive(){
   const body={ filters:{ age_min:f.ageMin, age_max:f.ageMax }, sample_size:CFG.LIVE_SAMPLE_SIZE, seed:2026, enrich:true };
   if(f.sex!=="all") body.filters.sex=f.sex;
   if(f.scope==="city"){ const p=state.persons.find(x=>x.city===f.value); if(p) body.filters.municipality_code=p.code; }
+  // Departamento: filtramos del lado del cliente por codigo de depto (2 dig); /population/sample
+  // filtra por municipio, asi que pedimos la muestra y nos quedamos con su departamento.
+  const deptCode = f.scope==="department" ? (DEPT_CODE_BY_NAME[f.value]||"") : "";
   try{
     const res=await fetch(`${CFG.API_BASE}/api/v3/population/sample`,{
       method:"POST", headers:{ "Content-Type":"application/json", "X-API-Key":CFG.API_KEY }, body:JSON.stringify(body) });
     if(!res.ok){ throw new Error("HTTP "+res.status); }
     const data=await res.json();
-    const rows=(data.persons||[]).map(mapLivePerson);
-    if(!rows.length) throw new Error("respuesta vacía");
+    let rows=(data.persons||[]).map(mapLivePerson);
+    if(deptCode) rows=rows.filter(r=>String(r.code||"").slice(0,2)===deptCode);
+    if(!rows.length){
+      toast(deptCode? "La muestra en vivo no trajo filas de ese departamento; mostrando respaldo."
+                    : "Respuesta vacía; mostrando respaldo.");
+      state.source="demo"; state.persons=DEMO.persons.slice(); render(); return;
+    }
     state.persons=rows; state.source="live";
     state.detailed=(data.persons||[]).slice(0,6).map(p=>({ meta:{age:p.age,sex:p.sex,city:p.municipality_name,region:DEPT_REGION[(p.municipality_code||"").slice(0,2)]||"andina"}, attributes:p.enrichment||{} }));
     toast(`✓ ${rows.length} personas en vivo`); render();
@@ -567,8 +595,9 @@ async function loadLive(){
   }
 }
 function mapLivePerson(p){
+  const code=p.municipality_code||"";
   const row={ id:(p.synthetic_id||"").slice(0,14), age:p.age, sex:p.sex, city:p.municipality_name,
-    code:p.municipality_code, region:DEPT_REGION[(p.municipality_code||"").slice(0,2)]||"andina" };
+    code:code, dept:p.department_name||DEPT_NAME_BY_CODE[String(code).slice(0,2)]||"", region:DEPT_REGION[String(code).slice(0,2)]||"andina" };
   const e=p.enrichment||{};
   Object.keys(e).forEach(k=>{ row[k]=e[k].value; });
   return row;
